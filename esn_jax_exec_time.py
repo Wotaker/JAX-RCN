@@ -12,7 +12,8 @@ from chex import Array, Scalar
 from typing import Tuple
 
 from esn import ESN
-from utils import chunkify, plot_predictions
+from utils import chunkify
+from gen_mackey_glass import generate_mackey_glass
 
 key = jax.random.PRNGKey(43)
 
@@ -21,8 +22,8 @@ SPLIT_RATIO = 0.8
 HISTORY_LEN = 10
 FORECAST_LEN = 1
 
-# Load from csv file
-mackey_data = jnp.squeeze(jnp.array(pd.read_csv("data/MackeyGlass_1k.csv", index_col=0)))
+# Load Mackey-Glass dataset
+mackey_data = jnp.squeeze(jnp.array(generate_mackey_glass(N_SAMPLES)))
 
 # Split into train-test
 split = int(SPLIT_RATIO * N_SAMPLES)
@@ -50,8 +51,37 @@ def fit_esn_jax(x_train: Array, y_train: Array) -> Array:
         leakage=0.3156014208642396,
         l2_cost=628.7829947402206
     )
-    y_hat_train = esn_jax.fit(X_train, Y_train)
+    y_hat = esn_jax.fit(x_train, y_train).predict(x_train)
     
-    return y_hat_train
+    return y_hat
+
+
+def fit_esn_pyrcn(x_train: Array, y_train: Array) -> Array:
+
+    input_to_node = InputToNode(
+        hidden_layer_size=69,
+        k_in=None,
+        sparsity=1.0,
+        input_activation="identity",
+    )
+    node_to_node = NodeToNode(
+        hidden_layer_size=69,
+        sparsity=1.0,
+        reservoir_activation="tanh",
+        spectral_radius=1.0,
+        leakage=0.3156014208642396,
+        bidirectional=False
+    )
+
+    R_i2n = input_to_node.fit_transform(x_train)
+    R_n2n = node_to_node.fit_transform(R_i2n)
+    ridge_train = Ridge(alpha=628.7829947402206).fit(R_n2n, y_train)
+    y_hat = ridge_train.predict(R_n2n)
+
+    return y_hat
+
+if __name__ == "__main__":
+    pass
+
 
 

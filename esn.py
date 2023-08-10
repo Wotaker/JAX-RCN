@@ -166,20 +166,18 @@ class ESN():
         # Node to Output
         self.reservoir_states = append_ones_to_batch(jnp.squeeze(r_batch).T)
         self.weights_out = ridge_weights(self.reservoir_states, y_train, self.l2_cost)
-        y_hat = node_to_output(self.reservoir_states, self.weights_out)
-
-        return y_hat
+        
+        return self
     
 
-    def predict(self, x_test: Array):
+    def predict(self, x_batch: Array):
 
         # Input to Node
-        x_test_ones = append_ones_to_batch(x_test)
-        r_prime_batch = input_to_node(x_test_ones, self.weights_in, self.input_activation)
+        x_batch_ones = append_ones_to_batch(x_batch)
+        r_prime_batch = input_to_node(x_batch_ones, self.weights_in, self.input_activation)
 
         # Node to Node
-        r_init = self.reservoir_state
-        init = (r_init, self.weights_res, self.node_activation, self.leakage)
+        init = (self.reservoir_state, self.weights_res, self.node_activation, self.leakage)
         carry, r_batch = jax.lax.scan(node_to_node, init, r_prime_batch.T)
         self.reservoir_state = carry[0]
 
