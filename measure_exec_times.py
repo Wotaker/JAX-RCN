@@ -1,3 +1,4 @@
+import os
 import timeit
 from argparse import ArgumentParser
 import pandas as pd
@@ -15,16 +16,21 @@ from esn import ESN
 from utils import chunkify
 from gen_mackey_glass import generate_mackey_glass
 
+# Parse arguments
+parser = ArgumentParser()
+parser.add_argument('--repeat', default=25, type=int)
+parser.add_argument('--number', default=100, type=int)
+parser.add_argument('--hidden', default=100, type=int)
+parser.add_argument('--n_samples', default=1000, type=int)
+args = parser.parse_args()
+
 # Constants
 PRNGKEY = jax.random.PRNGKey(71)
-
-N_SAMPLES = 10000
+HIDDEN_NODES = args.hidden
+N_SAMPLES = args.n_samples
 SPLIT_RATIO = 0.8
 HISTORY_LEN = 10
 FORECAST_LEN = 1
-
-identity = lambda x: x
-
 
 # Load Mackey-Glass dataset
 mackey_data = jnp.squeeze(jnp.array(generate_mackey_glass(N_SAMPLES)))
@@ -46,10 +52,10 @@ def fit_predict_esn_jax(x_train: Array, y_train: Array) -> Array:
 
     esn_jax = ESN(
         PRNGKEY,
-        hidden_nodes=500,
+        hidden_nodes=HIDDEN_NODES,
         sparsity_in=1.0,
         sparsity_node=1.0,
-        input_activation=identity,
+        input_activation=lambda x: x,
         node_activation=jax.nn.relu,
         spectral_radius=1.0,
         leakage=0.3156014208642396,
@@ -63,13 +69,13 @@ def fit_predict_esn_jax(x_train: Array, y_train: Array) -> Array:
 def fit_predict_esn_pyrcn(x_train: Array, y_train: Array) -> Array:
 
     input_to_node = InputToNode(
-        hidden_layer_size=500,
+        hidden_layer_size=HIDDEN_NODES,
         k_in=None,
         sparsity=1.0,
         input_activation="identity",
     )
     node_to_node = NodeToNode(
-        hidden_layer_size=500,
+        hidden_layer_size=HIDDEN_NODES,
         sparsity=1.0,
         reservoir_activation="relu",
         spectral_radius=1.0,
@@ -119,29 +125,33 @@ fit_predict_esn_pyrcn(X_train_np.T, Y_train_np.T)"""
 
 if __name__ == "__main__":
 
-    # Parse arguments
-    parser = ArgumentParser()
-    parser.add_argument('-r', '--repeat', default=25, type=int)
-    parser.add_argument('-n', '--number', default=100, type=int)
-    args = parser.parse_args()
-    
     # Measure execution times
     print("Measuring JAX execution times...")
+    start = timeit.default_timer()
     jax_times = measure_jax_times(repeat=args.repeat, number=args.number)
+    print(f"Total time: {timeit.default_timer() - start:.4f}")
+
     print("Measuring PyRCN execution times...")
+    start = timeit.default_timer()
     pyrcn_times = measure_pyrcn_times(repeat=args.repeat, number=args.number)
+    print(f"Total time: {timeit.default_timer() - start:.4f}")
 
     # Convert to dataframe
+    save_path_numeric = os.path.join("output", "numeric", f"exec-time_{N_SAMPLES}_{HIDDEN_NODES}.csv")
     frameworks = ['JAX' for _ in range(args.repeat)] + ['PyRCN' for _ in range(args.repeat)]
     df = pd.DataFrame({'Framework': frameworks, 'Time': np.concatenate((jax_times, pyrcn_times))})
-    df["All"] = ""
+    df["N_Samples"] = N_SAMPLES # [N_SAMPLES for _ in range(2 * args.repeat)]
+    df["Hidden_Nodes"] = HIDDEN_NODES # [HIDDEN_NODES for _ in range(2 * args.repeat)]
+    df.to_csv(save_path_numeric, index=False, header=False)
 
     # Plot results
+    save_path_plot = os.path.join("output", "plots", f"exec-time_{N_SAMPLES}_{HIDDEN_NODES}.pdf")
+    df["All"] = ""
     ax = sns.violinplot(x="All", y="Time", hue="Framework", data=df, split=True)
     ax.set_xlabel("")
     ax.set_ylabel("Execution Time (s)")
-    plt.title("Echo State Networks with different frameworks")
-    plt.savefig("exec_time.pdf")
+    plt.title(f"Echo State Networks with different frameworks\nN={N_SAMPLES}, H={HIDDEN_NODES}")
+    plt.savefig(save_path_plot, bbox_inches='tight')
 
 
 

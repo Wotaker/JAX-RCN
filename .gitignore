@@ -1,2 +1,5 @@
 __*
 *.pdf
+output/numeric/**
+output/plots/**
+output/all_results.csv
