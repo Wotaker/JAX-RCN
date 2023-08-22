@@ -84,7 +84,7 @@ def fit_predict_esn_pyrcn(x_train: Array, y_train: Array) -> Array:
     )
 
     R_i2n = input_to_node.fit_transform(x_train)
-    R_n2n = node_to_node.fit_transform(R_i2n)
+    R_n2n = node_to_node.fit_transform(R_i2n)   # Holds infinitely on HIDDEN_NODES >= 439 ????????
     ridge_train = Ridge(alpha=628.7829947402206).fit(R_n2n, y_train)
     y_hat = ridge_train.predict(R_n2n)
 
