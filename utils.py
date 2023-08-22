@@ -6,7 +6,7 @@ from chex import Array, Scalar
 from typing import Tuple
 
 
-def chunkify(data: Array, history_len: Scalar, forecast_len: Scalar, transpose: bool = True) -> Tuple[Array, Array]:
+def chunkify(data: Array, history_len: Scalar, forecast_len: Scalar, transpose: bool = False) -> Tuple[Array, Array]:
 
     X_data = []
     Y_data = []
@@ -22,10 +22,10 @@ def chunkify(data: Array, history_len: Scalar, forecast_len: Scalar, transpose: 
 
 
 def plot_predictions(x_train: Array, y_train: Array, y_hat_train: Array, history_len: int, forecast_len: int):
-    for idx in range(x_train.shape[1]):
-        x_sample = x_train[:, idx]
-        y_sample = y_train[:, idx]
-        pred_sample = y_hat_train[:, idx]
+    for idx in range(x_train.shape[0]):
+        x_sample = x_train[idx, :]
+        y_sample = y_train[idx, :]
+        pred_sample = y_hat_train[idx, :]
 
         plt.scatter(range(idx,  idx + history_len), x_sample, s=0.5, color="tab:blue", alpha=0.5)
         plt.scatter(range(idx + history_len, idx + history_len + forecast_len), y_sample, s=0.5, color="tab:orange", alpha=0.5)
@@ -34,6 +34,6 @@ def plot_predictions(x_train: Array, y_train: Array, y_hat_train: Array, history
     plt.plot([-100], [0], label="x_train", color="tab:blue")
     plt.plot([-100], [0], label="y_train", color="tab:orange")
     plt.plot([-100], [0], label="y_hat", color="tab:green")
-    plt.xlim(0, x_train.shape[1] + history_len + forecast_len)
+    plt.xlim(0, x_train.shape[0] + history_len + forecast_len)
     plt.legend()
     plt.show()
